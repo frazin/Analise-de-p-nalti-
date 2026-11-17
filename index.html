@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f3f5f6">
+  <title>Análise de pênaltis — Desempenho</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101812;
+      --panel: #18231b;
+      --panel-soft: #202d23;
+      --line: #334538;
+      --text: #f2f5ee;
+      --muted: #a4b2a5;
+      --lime: #c1f078;
+      --green: #39d98a;
+      --red: #ff626b;
+      --gold: #f8c76a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(ellipse at 86% 0%, #243627 0, transparent 37rem),
+        var(--bg);
+      color: var(--text);
+      font: 15px/1.5 "Segoe UI", Arial, sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell { max-width: 1240px; margin: auto; padding: 34px 24px 56px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 28px; }
+    .eyebrow { margin: 0 0 7px; color: var(--lime); font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(29px, 5vw, 43px); letter-spacing: -.045em; line-height: 1.1; }
+    .intro { margin: 10px 0 0; color: var(--muted); }
+    .header-mark { display: grid; width: 52px; height: 52px; place-items: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); font-size: 26px; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(310px, .8fr); gap: 18px; align-items: start; }
+    .stack { display: grid; gap: 18px; min-width: 0; }
+    .panel { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, #1a251d, #172119); box-shadow: 0 12px 35px #00000014; }
+    .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+    h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .subheading { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .step { color: #748677; font-size: 12px; font-weight: 800; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    label { display: grid; gap: 7px; color: #d3ded2; font-size: 12px; font-weight: 700; }
+    input, select { width: 100%; min-height: 43px; padding: 0 12px; border: 1px solid #405344; border-radius: 10px; outline: none; background: #111a14; color: var(--text); }
+    input:focus, select:focus { border-color: var(--lime); box-shadow: 0 0 0 3px #c1f07820; }
+    input::placeholder { color: #77877a; }
+    .athlete-form { display: flex; gap: 9px; }
+    .athlete-form input { flex: 1; min-width: 0; }
+    .button { min-height: 42px; padding: 0 15px; border: 1px solid transparent; border-radius: 10px; font-weight: 800; transition: transform .15s, filter .15s, border-color .15s; }
+    .button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .button-primary { background: var(--lime); color: #142012; }
+    .button-secondary { border-color: var(--line); background: var(--panel-soft); color: var(--text); }
+    .button-record { width: 100%; margin-top: 16px; }
+    .button:disabled { cursor: not-allowed; opacity: .43; transform: none; }
+
+    .goal-wrap { padding: 14px; border: 1px solid #435847; border-radius: 13px; background: #101b14; }
+    .goal-wrap > .goal { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 76px); gap: 4px; padding: 8px; overflow: hidden; border: 3px solid #e8eee4; border-bottom-width: 7px; border-radius: 7px 7px 3px 3px; background-color: #28412c; background-image: linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg, #ffffff12 1px, transparent 1px); background-size: 100% 33.333%, 33.333% 100%; }
+    .goal-wrap > .goal::before { position: absolute; z-index: 0; top: -54px; left: 50%; width: 150px; height: 80px; border: 1px solid #ffffff36; border-radius: 50%; content: ""; transform: translateX(-50%); }
+    .zone { position: relative; z-index: 1; display: grid; min-width: 0; place-items: center; border: 1px solid transparent; border-radius: 4px; background: #ffffff06; color: #ffffff88; font-size: 10px; transition: background .12s, border .12s; }
+    .zone:hover, .zone.selected { border-color: var(--lime); background: #c1f07826; color: white; }
+    .zone.selected { box-shadow: inset 0 0 0 1px var(--lime); }
+    .zone-label { pointer-events: none; }
+    .zone-markers { position: absolute; right: 3px; bottom: 3px; left: 3px; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; pointer-events: none; }
+    .zone-marker { display: grid; width: 13px; height: 13px; place-items: center; border-radius: 50%; font-size: 11px; line-height: 1; text-shadow: 0 1px 3px #000; }
+    .zone-marker.goal { color: var(--green); }
+    .zone-marker.out { color: var(--red); }
+    .zone-marker.saved { width: auto; font-size: 12px; }
+    .goal-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+    .outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 15px; }
+    .outcome { display: flex; min-height: 45px; align-items: center; justify-content: center; gap: 7px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: #111a14; color: #d9e3d8; font-size: 12px; font-weight: 800; }
+    .outcome[aria-pressed="true"] { border-color: currentColor; box-shadow: 0 0 0 2px #ffffff12; }
+    .outcome[data-result="goal"] { color: var(--green); }
+    .outcome[data-result="out"] { color: var(--red); }
+    .outcome[data-result="saved"] { color: #9dc8ff; }
+    .outcome span:last-child { color: var(--text); }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stat { padding: 15px 13px; border: 1px solid var(--line); border-radius: 12px; background: #111a14a8; }
+    .stat strong { display: block; font-size: 25px; letter-spacing: -.04em; }
+    .stat span { color: var(--muted); font-size: 11px; }
+    .stat-rate strong { color: var(--lime); }
+    .athlete-list { display: grid; gap: 10px; max-height: 410px; overflow: auto; }
+    .athlete-card { padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #111a14a8; }
+    .athlete-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .athlete-top strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .athlete-top span { color: var(--lime); font-size: 13px; font-weight: 800; }
+    .athlete-detail { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .bar { height: 5px; margin-top: 11px; overflow: hidden; border-radius: 9px; background: #344438; }
+    .bar span { display: block; height: 100%; border-radius: inherit; background: var(--lime); }
+    .empty { padding: 22px 12px; color: var(--muted); text-align: center; font-size: 13px; }
+
+    .history { grid-column: 1 / -1; }
+    .history-list { display: grid; gap: 8px; }
+    .attempt { display: grid; grid-template-columns: 32px minmax(95px, 1fr) minmax(80px, .8fr) auto auto; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: #111a14a8; }
+    .attempt-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #ffffff0c; font-size: 17px; }
+    .attempt-icon.goal { color: var(--green); }
+    .attempt-icon.out { color: var(--red); }
+    .attempt-icon.saved { color: #9dc8ff; }
+    .attempt-name { overflow: hidden; font-size: 13px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .attempt-meta { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { padding: 4px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .badge.goal { background: #39d98a1b; color: var(--green); }
+    .badge.out { background: #ff626b1b; color: var(--red); }
+    .badge.saved { background: #9dc8ff1b; color: #9dc8ff; }
+    .delete-button { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #9aaba0; font-size: 17px; }
+    .delete-button:hover { background: #ff626b18; color: var(--red); }
+    .notice { min-height: 20px; margin: 10px 0 0; color: var(--gold); font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 820px) {
+      .layout { grid-template-columns: 1fr; }
+      .history { grid-column: auto; }
+    }
+    @media (max-width: 540px) {
+      .shell { padding: 24px 14px 36px; }
+      header { margin-bottom: 20px; }
+      .panel { padding: 17px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .goal-wrap > .goal { grid-template-rows: repeat(3, 64px); }
+      .outcomes { gap: 6px; }
+      .outcome { flex-direction: column; gap: 2px; min-height: 52px; font-size: 10px; }
+      .attempt { grid-template-columns: 30px minmax(0, 1fr) auto 28px; gap: 8px; }
+      .attempt-meta { display: none; }
+      .stats { gap: 7px; }
+      .stat { padding: 12px 9px; }
+      .stat strong { font-size: 21px; }
+      .stat span { font-size: 10px; }
+    }
+
+    :root {
+      color-scheme: light;
+      --bg: #f2f4f6;
+      --panel: #ffffff;
+      --panel-soft: #f4f6f7;
+      --line: #d9dfe3;
+      --text: #202a32;
+      --muted: #65717a;
+      --lime: #397b66;
+      --green: #31826a;
+      --red: #c45156;
+      --gold: #8a641c;
+    }
+
+    body { background: var(--bg); color: var(--text); }
+    .shell { max-width: 1320px; }
+    header { align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+    .eyebrow { color: #527567; letter-spacing: .12em; }
+    h1 { font-size: clamp(26px, 4vw, 36px); letter-spacing: -.025em; }
+    .intro, .subheading { color: var(--muted); }
+    .header-mark { display: none; }
+    .layout { grid-template-columns: minmax(0, 1.45fr) minmax(300px, .75fr); gap: 16px; }
+    .panel { border-color: var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 1px 3px #1d29330a; }
+    .panel-heading { margin-bottom: 14px; }
+    h2 { font-size: 16px; letter-spacing: 0; }
+    .step { display: none; }
+    label { color: #34414a; }
+    input, select { border-color: #cbd3d9; border-radius: 5px; background: #fff; color: var(--text); }
+    input:focus, select:focus { border-color: #527567; box-shadow: 0 0 0 2px #52756720; }
+    input::placeholder { color: #8a969e; }
+    .button { border-radius: 5px; transition: background .12s, border-color .12s; }
+    .button:hover { filter: none; transform: none; }
+    .button-primary { background: #345f53; color: #fff; }
+    .button-primary:hover { background: #294d43; }
+    .button-secondary { border-color: var(--line); background: #fff; color: var(--text); }
+    .goal-wrap { padding: 8px; border: 0; border-radius: 0; background: transparent; }
+    .shot-map {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2.35 / 1;
+      overflow: hidden;
+      border: 1px solid #87939a;
+      background-color: #fbfcfc;
+      background-image: linear-gradient(#dce1e4 1px, transparent 1px), linear-gradient(90deg, #dce1e4 1px, transparent 1px);
+      background-size: 4% 10%;
+      cursor: crosshair;
+      touch-action: manipulation;
+    }
+    .shot-map:focus-visible { outline: 2px solid #527567; outline-offset: 3px; }
+    .goal-mouth { position: absolute; inset: 9% 8% 8%; border-top: 4px solid #66737b; border-right: 4px solid #66737b; border-left: 4px solid #66737b; pointer-events: none; }
+    .map-markers { position: absolute; inset: 0; pointer-events: none; }
+    .map-marker {
+      position: absolute;
+      display: grid;
+      width: 17px;
+      height: 17px;
+      place-items: center;
+      transform: translate(-50%, -50%);
+      border: 1px solid #303a41;
+      border-radius: 50%;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .map-marker.goal, .map-marker.out { border-color: #fff; color: transparent; font-size: 0; box-shadow: 0 0 0 1px #303a41; }
+    .map-marker.goal { background: var(--green); }
+    .map-marker.out { background: var(--red); }
+    .map-marker.saved { color: #4b657e; font-size: 12px; }
+    .map-marker.preview { width: 21px; height: 21px; border-width: 2px; box-shadow: 0 0 0 3px #345f5326; }
+    .map-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .map-toolbar label { margin: 0 !important; }
+    .map-toggle { min-height: 34px; padding: 0 11px; font-size: 12px; white-space: nowrap; }
+    .goal-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; text-align: left; }
+    .outcomes { gap: 8px; margin-top: 12px; }
+    .outcome { min-height: 40px; border-color: var(--line); border-radius: 5px; background: #fff; color: var(--text); }
+    .outcome[aria-pressed="true"] { box-shadow: 0 0 0 2px #52756724; }
+    .outcome span:last-child { color: inherit; }
+    .stats { gap: 8px; }
+    .stat { border-color: var(--line); border-radius: 6px; background: #fff; }
+    .stat strong { font-size: 23px; }
+    .stat span { color: var(--muted); }
+    .stat-rate strong, .athlete-top span { color: #345f53; }
+    .analysis-select { max-width: 360px; margin-bottom: 12px; }
+    .opponent-field { margin-top: 12px; }
+    .athlete-list { max-height: 360px; }
+    .athlete-card { border-color: var(--line); border-radius: 6px; background: #fff; }
+    .bar { background: #e4e9e9; }
+    .bar span { background: #527567; }
+    .empty { color: var(--muted); }
+    .history-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+    .attempt {
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      grid-template-areas: "icon name badge" "icon location goalkeeper";
+      align-items: center;
+      gap: 6px 12px;
+      min-height: 82px;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-left: 4px solid #c8d1d6;
+      border-radius: 8px;
+      background: #fff;
+      transition: box-shadow .15s, transform .15s;
+    }
+    .attempt:hover { box-shadow: 0 5px 16px #1d293314; transform: translateY(-1px); }
+    .attempt.attempt-goal { border-left-color: var(--green); }
+    .attempt.attempt-out { border-left-color: var(--red); }
+    .attempt.attempt-saved { border-left-color: #7090ad; }
+    .attempt-icon { grid-area: icon; width: 26px; height: 26px; border-radius: 9px; background: #f3f5f6; }
+    .attempt-name { grid-area: name; min-width: 0; font-size: 14px; }
+    .attempt-location { grid-area: location; display: block; color: #34414a; font-size: 12px; font-weight: 650; }
+    .attempt-goalkeeper { grid-area: goalkeeper; display: block; justify-self: end; font-size: 11px; }
+    .badge { grid-area: badge; display: inline-flex; min-height: 25px; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 999px; }
+    .notice { color: var(--gold); }
+    .export-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .export-help { margin: 11px 0 0; color: var(--muted); font-size: 12px; }
+    .button-danger { border-color: #b8484e; background: #b8484e; color: #fff; }
+    .button-danger:hover { background: #a63d43; }
+    .reset-dialog { width: min(440px, calc(100% - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); box-shadow: 0 18px 60px #10202b35; }
+    .reset-dialog::backdrop { background: #16212b80; }
+    .reset-dialog h2 { margin: 0 0 8px; }
+    .reset-dialog p { color: var(--muted); }
+    .reset-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .history { grid-column: 1 / -1; }
+
+    @media (max-width: 820px) {
+      .layout { grid-template-columns: 1fr; }
+      .history { grid-column: auto; }
+    }
+    @media (max-width: 540px) {
+      .shell { padding: 22px 14px 36px; }
+      .history-list { grid-template-columns: 1fr; }
+      .attempt { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 5px 9px; padding: 12px; }
+      .attempt-location { display: block; }
+      .attempt-goalkeeper { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Desempenho esportivo · Pênaltis</p>
+        <h1>Análise de cobranças</h1>
+        <p class="intro">Registro e análise de finalizações por atleta.</p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="panel" aria-labelledby="athlete-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="athlete-heading">Elenco</h2>
+              <p class="subheading">Cadastre os atletas que vão bater os pênaltis.</p>
+            </div>
+          </div>
+          <form id="athlete-form" class="athlete-form">
+            <label class="sr-only" for="athlete-name">Nome do atleta</label>
+            <input id="athlete-name" name="athlete" placeholder="Nome do atleta" maxlength="40" required>
+            <button class="button button-primary" type="submit">+ Cadastrar</button>
+          </form>
+          <p id="athlete-notice" class="notice" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="record-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="record-heading">Registrar cobrança</h2>
+              <p class="subheading">Escolha o batedor, marque o gol e selecione o resultado.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label for="shooter">Batedor
+              <select id="shooter"><option value="">Cadastre um atleta primeiro</option></select>
+            </label>
+            <label for="goalkeeper">Goleiro
+              <input id="goalkeeper" maxlength="40" placeholder="Nome de quem estava no gol">
+            </label>
+          </div>
+          <label class="opponent-field" for="opponent-name">Time adversário
+            <input id="opponent-name" maxlength="60" placeholder="Nome do time adversário">
+          </label>
+          <p id="opponent-notice" class="notice" role="status" aria-live="polite"></p>
+          <div style="margin-top: 20px">
+            <div class="map-toolbar">
+              <label for="shot-map">Local da cobrança</label>
+              <button id="clear-map-markers" class="button button-secondary map-toggle" type="button" aria-controls="shot-markers">Limpar área do gráfico</button>
+            </div>
+            <div id="goal-map" class="goal-wrap" role="group" aria-label="Marque onde o batedor cobrou">
+              <div id="shot-map" class="shot-map" tabindex="0" role="application" aria-label="Campo de marcação da cobrança. Clique para posicionar.">
+                <div class="goal-mouth" aria-hidden="true"></div>
+                <div id="shot-markers" class="map-markers" aria-hidden="true"></div>
+              </div>
+              <p id="map-hint" class="goal-hint" role="status" aria-live="polite">Clique no gráfico para marcar onde a cobrança foi direcionada.</p>
+            </div>
+          </div>
+          <div class="outcomes" role="group" aria-label="Resultado da cobrança">
+            <button class="outcome" type="button" data-result="goal" aria-pressed="false"><span aria-hidden="true">●</span><span>Gol</span></button>
+            <button class="outcome" type="button" data-result="out" aria-pressed="false"><span aria-hidden="true">●</span><span>Fora</span></button>
+            <button class="outcome" type="button" data-result="saved" aria-pressed="false"><span aria-hidden="true">🧤</span><span>Defendido</span></button>
+          </div>
+          <button id="save-attempt" class="button button-primary button-record" type="button" disabled>Registrar cobrança</button>
+          <p id="record-notice" class="notice" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel" aria-labelledby="summary-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="summary-heading">Resumo geral</h2>
+              <p class="subheading">Desempenho do atleta selecionado ou de todo o elenco.</p>
+            </div>
+          </div>
+          <label class="analysis-select" for="analysis-athlete">Exibir dados de
+            <select id="analysis-athlete">
+              <option value="">Todos os atletas</option>
+            </select>
+          </label>
+          <div class="stats">
+            <div class="stat"><strong id="total-count">0</strong><span>Cobranças</span></div>
+            <div class="stat"><strong id="goals-count">0</strong><span>Gols</span></div>
+            <div class="stat stat-rate"><strong id="conversion-rate">0%</strong><span>Conversão</span></div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="performance-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="performance-heading">Por atleta</h2>
+              <p class="subheading">Taxa de conversão, defesas e cobranças para fora.</p>
+            </div>
+          </div>
+          <div id="athlete-performance" class="athlete-list"></div>
+        </section>
+        <section class="panel" aria-labelledby="export-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="export-heading">Exportar para Excel</h2>
+              <p class="subheading">Baixe os registros feitos nesta análise.</p>
+            </div>
+          </div>
+          <div class="export-row">
+            <button id="export-xlsx" class="button button-secondary" type="button" disabled>Exportar dados (.xlsx)</button>
+          </div>
+          <p class="export-help">Inclui cobranças detalhadas e um resumo dos cantos de segurança por atleta. Empates aparecem em linhas separadas. Requer internet para gerar o Excel.</p>
+          <p id="export-notice" class="notice" role="status" aria-live="polite"></p>
+        </section>
+        <section class="panel" aria-labelledby="reset-heading">
+          <div class="panel-heading">
+            <div>
+              <h2 id="reset-heading">Redefinir análise</h2>
+              <p class="subheading">Apague atletas, cobranças e o adversário salvo.</p>
+            </div>
+          </div>
+          <button id="open-reset-dialog" class="button button-danger" type="button">Resetar todos os dados</button>
+        </section>
+      </div>
+
+      <section class="panel history" aria-labelledby="history-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="history-heading">Cobranças recentes</h2>
+            <p class="subheading">Posição, resultado e goleiro de cada cobrança.</p>
+          </div>
+        </div>
+        <div id="history-list" class="history-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="reset-dialog" class="reset-dialog" aria-labelledby="reset-dialog-heading">
+    <h2 id="reset-dialog-heading">Confirmar exclusão de dados</h2>
+    <p>Esta ação apagará todos os atletas, cobranças e o time adversário salvos neste navegador. Para continuar, digite <strong>CONFIRMAR</strong>.</p>
+    <label for="reset-confirmation">Confirmação
+      <input id="reset-confirmation" autocomplete="off" placeholder="Digite CONFIRMAR">
+    </label>
+    <p id="reset-notice" class="notice" role="status" aria-live="polite"></p>
+    <div class="reset-actions">
+      <button id="cancel-reset" class="button button-secondary" type="button">Cancelar</button>
+      <button id="confirm-reset" class="button button-danger" type="button" disabled>Excluir todos os dados</button>
+    </div>
+  </dialog>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var STORAGE_KEY = "penalty-lab-data-v1";
+      var stateLoadError = "";
+      var outcomes = {
+        goal: { label: "Gol", icon: "●" },
+        out: { label: "Fora", icon: "●" },
+        saved: { label: "Defendido", icon: "🧤" }
+      };
+      var state = loadState();
+      var selectedPoint = null;
+      var selectedResult = "";
+
+      var athleteForm = document.getElementById("athlete-form");
+      var athleteInput = document.getElementById("athlete-name");
+      var shooterSelect = document.getElementById("shooter");
+      var analysisFilter = document.getElementById("analysis-athlete");
+      var goalkeeperInput = document.getElementById("goalkeeper");
+      var opponentInput = document.getElementById("opponent-name");
+      var saveButton = document.getElementById("save-attempt");
+      var recordNotice = document.getElementById("record-notice");
+      var shotMap = document.getElementById("shot-map");
+      var markerLayer = document.getElementById("shot-markers");
+      var clearMapButton = document.getElementById("clear-map-markers");
+      var mapHint = document.getElementById("map-hint");
+      var mapHintDefault = mapHint.textContent;
+      var exportButton = document.getElementById("export-xlsx");
+      var resetDialog = document.getElementById("reset-dialog");
+      var resetConfirmation = document.getElementById("reset-confirmation");
+      var confirmResetButton = document.getElementById("confirm-reset");
+      opponentInput.value = state.opponent;
+
+      function savedAttempt(attempt) {
+        if (typeof attempt.x === "number" && typeof attempt.y === "number") return attempt;
+        var oldPositions = {
+          "Superior esquerdo": [20, 20], "Superior central": [50, 20], "Superior direito": [80, 20],
+          "Meio esquerdo": [20, 50], "Meio central": [50, 50], "Meio direito": [80, 50],
+          "Inferior esquerdo": [20, 80], "Inferior central": [50, 80], "Inferior direito": [80, 80]
+        };
+        var point = oldPositions[attempt.zone];
+        return point ? Object.assign({}, attempt, { x: point[0], y: point[1] }) : attempt;
+      }
+
+      function loadState() {
+        try {
+          var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          var attempts = Array.isArray(saved.attempts) ? saved.attempts.map(savedAttempt) : [];
+          var mapClearedThrough = Number.isInteger(saved.mapClearedThrough) ? saved.mapClearedThrough : 0;
+          mapClearedThrough = Math.max(0, Math.min(mapClearedThrough, attempts.length));
+          return {
+            athletes: Array.isArray(saved.athletes) ? saved.athletes : [],
+            attempts: attempts,
+            mapClearedThrough: mapClearedThrough,
+            opponent: typeof saved.opponent === "string" ? saved.opponent : ""
+          };
+        } catch (error) {
+          stateLoadError = "Não foi possível carregar os dados salvos deste navegador.";
+          return { athletes: [], attempts: [], mapClearedThrough: 0, opponent: "" };
+        }
+      }
+
+      function persist() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      function makeElement(tag, className, text) {
+        var element = document.createElement(tag);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = text;
+        return element;
+      }
+
+      function getShotLocation(attempt) {
+        var height = attempt.y < 33.333 ? "Alto" : attempt.y < 66.667 ? "Médio" : "Baixo";
+        var width = attempt.x < 33.333 ? "Esquerda" : attempt.x < 66.667 ? "Centro" : "Direita";
+        return { height: height, width: width, sector: height + " / " + width };
+      }
+
+      function getMostUsedLocation(attempts) {
+        var counts = {};
+        attempts.forEach(function (attempt) {
+          var sector = getShotLocation(attempt).sector;
+          counts[sector] = (counts[sector] || 0) + 1;
+        });
+        var sectors = Object.keys(counts);
+        if (sectors.length === 0) return null;
+        var highestCount = Math.max.apply(null, sectors.map(function (sector) { return counts[sector]; }));
+        var leaders = sectors.filter(function (sector) { return counts[sector] === highestCount; });
+        return {
+          label: leaders.length > 1 ? "Empate: " + leaders.join(", ") : leaders[0],
+          sectors: leaders,
+          count: highestCount
+        };
+      }
+
+      function getConversionRate(attempts) {
+        if (attempts.length === 0) return 0;
+        return attempts.filter(function (attempt) { return attempt.result === "goal"; }).length / attempts.length;
+      }
+
+      function getAttemptOpponent(attempt) {
+        var opponent = typeof attempt.opponent === "string" ? attempt.opponent.trim() : "";
+        return opponent || "Não informado";
+      }
+
+      function getVisibleAttempts() {
+        return analysisFilter.value
+          ? state.attempts.filter(function (attempt) { return attempt.shooter === analysisFilter.value; })
+          : state.attempts;
+      }
+
+      function renderAthletes() {
+        var previousValue = shooterSelect.value;
+        var previousFilter = analysisFilter.value;
+        shooterSelect.replaceChildren();
+        analysisFilter.replaceChildren();
+        var allAthletes = document.createElement("option");
+        allAthletes.value = "";
+        allAthletes.textContent = "Todos os atletas";
+        analysisFilter.appendChild(allAthletes);
+        if (state.athletes.length === 0) {
+          var emptyOption = document.createElement("option");
+          emptyOption.value = "";
+          emptyOption.textContent = "Cadastre um atleta primeiro";
+          shooterSelect.appendChild(emptyOption);
+        } else {
+          var prompt = document.createElement("option");
+          prompt.value = "";
+          prompt.textContent = "Selecione o batedor";
+          shooterSelect.appendChild(prompt);
+          state.athletes.forEach(function (name) {
+            var option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            shooterSelect.appendChild(option);
+            var filterOption = document.createElement("option");
+            filterOption.value = name;
+            filterOption.textContent = name;
+            analysisFilter.appendChild(filterOption);
+          });
+          if (state.athletes.indexOf(previousValue) !== -1) shooterSelect.value = previousValue;
+          if (state.athletes.indexOf(previousFilter) !== -1) analysisFilter.value = previousFilter;
+        }
+        renderPerformance();
+        updateSaveButton();
+      }
+
+      function renderPerformance() {
+        var container = document.getElementById("athlete-performance");
+        container.replaceChildren();
+        if (state.athletes.length === 0) {
+          container.appendChild(makeElement("div", "empty", "Cadastre atletas para acompanhar o desempenho."));
+          return;
+        }
+        var athletesToShow = analysisFilter.value ? [analysisFilter.value] : state.athletes;
+        athletesToShow.forEach(function (athlete) {
+          var attempts = state.attempts.filter(function (attempt) { return attempt.shooter === athlete; });
+          var goals = attempts.filter(function (attempt) { return attempt.result === "goal"; }).length;
+          var saved = attempts.filter(function (attempt) { return attempt.result === "saved"; }).length;
+          var out = attempts.filter(function (attempt) { return attempt.result === "out"; }).length;
+          var rate = Math.round(getConversionRate(attempts) * 100);
+          var card = makeElement("article", "athlete-card");
+          var top = makeElement("div", "athlete-top");
+          top.appendChild(makeElement("strong", "", athlete));
+          top.appendChild(makeElement("span", "", rate + "%"));
+          card.appendChild(top);
+          card.appendChild(makeElement("div", "athlete-detail", attempts.length + (attempts.length === 1 ? " cobrança" : " cobranças") + " · " + goals + (goals === 1 ? " gol" : " gols") + " · " + saved + (saved === 1 ? " defesa" : " defesas") + " · " + out + (out === 1 ? " cobrança para fora" : " cobranças para fora")));
+          var mostUsed = getMostUsedLocation(attempts);
+          card.appendChild(makeElement("div", "athlete-detail", "Canto de segurança: " + (mostUsed ? mostUsed.label + " (" + mostUsed.count + ")" : "sem cobranças registradas")));
+          var bar = makeElement("div", "bar");
+          var fill = document.createElement("span");
+          fill.style.width = rate + "%";
+          bar.appendChild(fill);
+          card.appendChild(bar);
+          container.appendChild(card);
+        });
+      }
+
+      function renderSummary() {
+        var attempts = getVisibleAttempts();
+        var total = attempts.length;
+        var goals = attempts.filter(function (attempt) { return attempt.result === "goal"; }).length;
+        document.getElementById("total-count").textContent = String(total);
+        document.getElementById("goals-count").textContent = String(goals);
+        document.getElementById("conversion-rate").textContent = Math.round(getConversionRate(attempts) * 100) + "%";
+        exportButton.disabled = state.attempts.length === 0;
+        renderPerformance();
+        renderHistory();
+        renderShotMarkers();
+        updateMapClearButton();
+      }
+
+      function renderHistory() {
+        var container = document.getElementById("history-list");
+        container.replaceChildren();
+        var attempts = getVisibleAttempts();
+        if (attempts.length === 0) {
+          container.appendChild(makeElement("div", "empty", analysisFilter.value ? "Nenhuma cobrança registrada para este atleta." : "Nenhuma cobrança registrada. O histórico aparecerá aqui."));
+          return;
+        }
+        attempts.slice().reverse().forEach(function (attempt) {
+          var row = makeElement("div", "attempt attempt-" + attempt.result);
+          var icon = makeElement("span", "attempt-icon " + attempt.result, outcomes[attempt.result].icon);
+          icon.setAttribute("aria-label", outcomes[attempt.result].label);
+          row.appendChild(icon);
+          row.appendChild(makeElement("strong", "attempt-name", attempt.shooter));
+          var location = getShotLocation(attempt);
+          row.appendChild(makeElement("span", "attempt-meta attempt-location", location.sector));
+          row.appendChild(makeElement("span", "badge " + attempt.result, outcomes[attempt.result].label));
+          row.appendChild(makeElement("span", "attempt-meta attempt-goalkeeper", "Goleiro: " + (attempt.goalkeeper || "—")));
+          container.appendChild(row);
+        });
+      }
+
+      function createMapMarker(attempt, preview) {
+        var result = outcomes[attempt.result];
+        var location = getShotLocation(attempt);
+        var marker = makeElement("span", "map-marker " + attempt.result + (preview ? " preview" : ""), result.icon);
+        marker.style.left = attempt.x + "%";
+        marker.style.top = attempt.y + "%";
+        marker.setAttribute("title", (attempt.shooter || "Pré-visualização") + " · " + result.label + " · " + location.sector);
+        return marker;
+      }
+
+      function renderShotMarkers() {
+        markerLayer.replaceChildren();
+        state.attempts.forEach(function (attempt, index) {
+          if (index < state.mapClearedThrough || (analysisFilter.value && attempt.shooter !== analysisFilter.value)) return;
+          if (outcomes[attempt.result] && Number.isFinite(attempt.x) && Number.isFinite(attempt.y)) {
+            markerLayer.appendChild(createMapMarker(attempt, false));
+          }
+        });
+        if (selectedPoint && selectedResult) {
+          markerLayer.appendChild(createMapMarker({
+            x: selectedPoint.x,
+            y: selectedPoint.y,
+            result: selectedResult
+          }, true));
+        }
+      }
+
+      function updateMapClearButton() {
+        var hasMapMarkers = state.attempts.some(function (attempt, index) {
+          return index >= state.mapClearedThrough && (!analysisFilter.value || attempt.shooter === analysisFilter.value);
+        });
+        clearMapButton.disabled = !hasMapMarkers && !selectedPoint;
+      }
+
+      function updateSaveButton() {
+        saveButton.disabled = !shooterSelect.value || !selectedPoint || !selectedResult;
+      }
+
+      athleteForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var name = athleteInput.value.trim();
+        var existing = state.athletes.some(function (athlete) { return athlete.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"); });
+        if (!name) return;
+        if (existing) {
+          document.getElementById("athlete-notice").textContent = "Esse atleta já está cadastrado.";
+          return;
+        }
+        state.athletes.push(name);
+        if (!persist()) {
+          state.athletes.pop();
+          document.getElementById("athlete-notice").textContent = "Não foi possível salvar. Verifique o espaço disponível no navegador.";
+          return;
+        }
+        athleteInput.value = "";
+        document.getElementById("athlete-notice").textContent = name + " foi cadastrado.";
+        renderAthletes();
+        shooterSelect.value = name;
+        updateSaveButton();
+      });
+
+      opponentInput.addEventListener("change", function () {
+        var previousOpponent = state.opponent;
+        state.opponent = opponentInput.value.trim();
+        if (!persist()) {
+          state.opponent = previousOpponent;
+          opponentInput.value = previousOpponent;
+          document.getElementById("opponent-notice").textContent = "Não foi possível salvar o time adversário. Verifique o espaço disponível no navegador.";
+          return;
+        }
+        opponentInput.value = state.opponent;
+        document.getElementById("opponent-notice").textContent = state.opponent ? "Time adversário salvo." : "";
+      });
+
+      function setPoint(x, y) {
+        selectedPoint = {
+          x: Math.round(x * 10) / 10,
+          y: Math.round(y * 10) / 10
+        };
+        mapHint.textContent = mapHintDefault;
+        renderShotMarkers();
+        updateSaveButton();
+        updateMapClearButton();
+      }
+
+      shotMap.addEventListener("click", function (event) {
+        var bounds = shotMap.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        setPoint(
+          Math.max(0, Math.min(100, (event.clientX - bounds.left) / bounds.width * 100)),
+          Math.max(0, Math.min(100, (event.clientY - bounds.top) / bounds.height * 100))
+        );
+      });
+
+      clearMapButton.addEventListener("click", function () {
+        var previousClearPoint = state.mapClearedThrough;
+        state.mapClearedThrough = state.attempts.length;
+        if (!persist()) {
+          state.mapClearedThrough = previousClearPoint;
+          mapHint.textContent = "Não foi possível limpar o gráfico. Verifique o espaço disponível no navegador.";
+          return;
+        }
+        selectedPoint = null;
+        selectedResult = "";
+        document.querySelectorAll(".outcome").forEach(function (outcome) {
+          outcome.setAttribute("aria-pressed", "false");
+        });
+        mapHint.textContent = "Área do gráfico limpa. Os registros continuam no histórico, resumo e Excel.";
+        updateSaveButton();
+        renderShotMarkers();
+        updateMapClearButton();
+      });
+
+      document.querySelectorAll(".outcome").forEach(function (button) {
+        button.addEventListener("click", function () {
+          selectedResult = button.getAttribute("data-result");
+          document.querySelectorAll(".outcome").forEach(function (outcome) {
+            outcome.setAttribute("aria-pressed", String(outcome === button));
+          });
+          renderShotMarkers();
+          updateSaveButton();
+        });
+      });
+
+      shooterSelect.addEventListener("change", updateSaveButton);
+      analysisFilter.addEventListener("change", renderSummary);
+
+      document.getElementById("open-reset-dialog").addEventListener("click", function () {
+        resetConfirmation.value = "";
+        document.getElementById("reset-notice").textContent = "";
+        confirmResetButton.disabled = true;
+        resetDialog.showModal();
+        resetConfirmation.focus();
+      });
+
+      resetConfirmation.addEventListener("input", function () {
+        confirmResetButton.disabled = resetConfirmation.value.trim() !== "CONFIRMAR";
+      });
+
+      document.getElementById("cancel-reset").addEventListener("click", function () {
+        resetDialog.close();
+      });
+
+      confirmResetButton.addEventListener("click", function () {
+        if (resetConfirmation.value.trim() !== "CONFIRMAR") return;
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+          document.getElementById("reset-notice").textContent = "Não foi possível apagar os dados salvos. Tente novamente.";
+          return;
+        }
+
+        state = { athletes: [], attempts: [], mapClearedThrough: 0, opponent: "" };
+        selectedPoint = null;
+        selectedResult = "";
+        athleteInput.value = "";
+        goalkeeperInput.value = "";
+        opponentInput.value = "";
+        document.getElementById("athlete-notice").textContent = "";
+        document.getElementById("opponent-notice").textContent = "";
+        document.getElementById("record-notice").textContent = "";
+        document.getElementById("export-notice").textContent = "";
+        mapHint.textContent = mapHintDefault;
+        document.querySelectorAll(".outcome").forEach(function (outcome) {
+          outcome.setAttribute("aria-pressed", "false");
+        });
+        renderAthletes();
+        renderSummary();
+        resetDialog.close();
+      });
+
+      saveButton.addEventListener("click", function () {
+        if (saveButton.disabled) return;
+        var attempt = {
+          shooter: shooterSelect.value,
+          goalkeeper: goalkeeperInput.value.trim(),
+          opponent: opponentInput.value.trim(),
+          x: selectedPoint.x,
+          y: selectedPoint.y,
+          result: selectedResult,
+          date: new Date().toISOString()
+        };
+        state.attempts.push(attempt);
+        if (!persist()) {
+          state.attempts.pop();
+          recordNotice.textContent = "Não foi possível salvar. Verifique o espaço disponível no navegador.";
+          return;
+        }
+        recordNotice.textContent = "Cobrança registrada para " + attempt.shooter + ".";
+        selectedPoint = null;
+        selectedResult = "";
+        goalkeeperInput.value = "";
+        document.querySelectorAll(".outcome").forEach(function (outcome) {
+          outcome.setAttribute("aria-pressed", "false");
+        });
+        updateSaveButton();
+        renderSummary();
+      });
+
+      exportButton.addEventListener("click", function () {
+        var notice = document.getElementById("export-notice");
+        if (state.attempts.length === 0) {
+          notice.textContent = "Registre ao menos uma cobrança antes de exportar.";
+          return;
+        }
+        if (typeof XLSX === "undefined") {
+          notice.textContent = "A biblioteca do Excel não foi carregada. Verifique a conexão e recarregue a página.";
+          return;
+        }
+
+        try {
+          var rows = [[
+            "Time adversário", "Atleta", "Goleiro", "Altura", "Lado",
+            "Resultado", "Canto de segurança", "Taxa de conversão do batedor (%)"
+          ]];
+          state.attempts.forEach(function (attempt) {
+            var location = getShotLocation(attempt);
+            var athleteAttempts = state.attempts.filter(function (candidate) {
+              return candidate.shooter === attempt.shooter;
+            });
+            var mostUsed = getMostUsedLocation(athleteAttempts);
+            rows.push([
+              getAttemptOpponent(attempt),
+              attempt.shooter,
+              attempt.goalkeeper || "",
+              location.height,
+              location.width,
+              outcomes[attempt.result].label,
+              mostUsed
+                ? (mostUsed.sectors.length > 1 ? "Empate (" + mostUsed.sectors.length + " setores)" : mostUsed.sectors[0])
+                : "",
+              getConversionRate(athleteAttempts)
+            ]);
+          });
+          var worksheet = XLSX.utils.aoa_to_sheet(rows);
+          worksheet["!cols"] = [
+            { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 12 }, { wch: 14 },
+            { wch: 16 }, { wch: 24 }, { wch: 28 }
+          ];
+          for (var rowIndex = 1; rowIndex < rows.length; rowIndex++) {
+            worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 7 })].z = "0%";
+          }
+          var summaryRows = [[
+            "Times adversários", "Atleta", "Total de cobranças", "Canto de segurança",
+            "Taxa de conversão do batedor (%)"
+          ]];
+          state.athletes.forEach(function (athlete) {
+            var athleteAttempts = state.attempts.filter(function (attempt) { return attempt.shooter === athlete; });
+            var mostUsed = getMostUsedLocation(athleteAttempts);
+            var athleteOpponents = [];
+            athleteAttempts.forEach(function (attempt) {
+              var opponent = getAttemptOpponent(attempt);
+              if (athleteOpponents.indexOf(opponent) === -1) athleteOpponents.push(opponent);
+            });
+            var safetySectors = mostUsed ? mostUsed.sectors : [""];
+            safetySectors.forEach(function (sector) {
+              summaryRows.push([
+                athleteOpponents.join(", "),
+                athlete,
+                athleteAttempts.length,
+                sector,
+                getConversionRate(athleteAttempts)
+              ]);
+            });
+          });
+          var summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryRows);
+          summaryWorksheet["!cols"] = [
+            { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 28 }
+          ];
+          for (var summaryRowIndex = 1; summaryRowIndex < summaryRows.length; summaryRowIndex++) {
+            summaryWorksheet[XLSX.utils.encode_cell({ r: summaryRowIndex, c: 4 })].z = "0%";
+          }
+          var workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Cobranças");
+          XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Resumo por atleta");
+          XLSX.writeFile(workbook, "analise-de-penaltis.xlsx");
+          notice.textContent = "Arquivo Excel exportado com " + state.attempts.length + (state.attempts.length === 1 ? " cobrança." : " cobranças.");
+        } catch (error) {
+          notice.textContent = "Não foi possível gerar o arquivo Excel. Tente novamente.";
+        }
+      });
+
+      renderAthletes();
+      renderSummary();
+      if (stateLoadError) document.getElementById("athlete-notice").textContent = stateLoadError;
+    }());
+  </script>
+</body>
+</html>
